@@ -72,7 +72,7 @@ function runInstallation(stdout, stderr, cfg) {
 					error+= (err.hostname || err.address)?(err.hostname || err.address):'';
 					error+= err.port?':' + err.port:'';
 				}
-				stderr(error);
+				reject(error);
 			});
 			installer.on(ep + 'install.log', function(str){
 				str && stdout(str);
