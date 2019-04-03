@@ -40,8 +40,6 @@ function NOP(){}
 Client.prototype.install = function(cfg) {
 	let self = this;
 
-	console.log(cfg);
-
 	self.config.out = cfg.out && isFunction(cfg.out) || self.config.out;
 	self.config.outCleanup = cfg.outCleanup && isFunction(cfg.outCleanup) || self.config.outCleanup || NOP;
 	self.config.install = cfg.install || self.config.install;
