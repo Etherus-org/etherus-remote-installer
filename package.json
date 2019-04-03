@@ -1,0 +1,24 @@
+{
+  "name": "@etherus-org/etherus-remote-installer",
+  "version": "0.1.0",
+  "description": "Etherus Installation Service",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js",
+    "server": "node server.js"
+  },
+  "author": "Anton Filatov (ya-enot@mail.ru)",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Etherus-org/etherus-remote-installer.git"
+  },
+  "dependencies": {
+    "ssh2": "^0.8.1"
+  },
+  "devDependencies": {
+    "express": "^4.16.4",
+    "express-ws": "^4.0.0",
+    "tmp": "^0.1.0"
+  }
+}
