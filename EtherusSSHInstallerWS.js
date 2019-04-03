@@ -97,7 +97,8 @@ function runInstallation(stdout, stderr, cfg) {
 				let info = {
 					name: service.name,
 					network: service.getPath('value', 'result', 'node_info', 'network'),
-					version: service.getPath('value', 'result', 'node_info', 'version')
+					version: service.getPath('value', 'result', 'node_info', 'version'),
+					err: service.getPath('error')
 				}
 				switch(service.name) {
 					case "ValidatorNode":
@@ -114,14 +115,16 @@ function runInstallation(stdout, stderr, cfg) {
 			installer.on(ep + 'checkHealth.result', function(code, success, service){
 				let info = {
 					name: service.name,
-					live: service.live
+					live: service.live,
+					progress: service.progress
 				}
 				stdout('Service '+service.name+(service.live && ' is ready' || ' is broken'), info);
 			});
 			installer.on(ep + 'checkHealth.retry', function(code, success, service){
 				let info = {
 					name: service.name,
-					retry: service.retry
+					retry: service.retry,
+					progress: service.progress
 				}
 				stdout('Retry '+service.name+' check', info);
 			});

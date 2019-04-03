@@ -5,18 +5,22 @@ Object.prototype.safePath = function(name) {
 	return (...path)=>new SafePath(name, path.reduce((xs, x) => (xs && xs[x]) ? xs[x] : undefined, self));
 }
 
-function checkNodeAlive(data, log) {
+function checkNodeAlive(data, log, progress) {
 	data=data && data.result
 	if(!data) {
 		return false;
 	}
-	let height = data.safePath('height')('round_state','height').notEmpty().notNegative().get();
+	let height = Number(data.safePath('height')('round_state','height').notEmpty().notNegative().get());
 	let peers = data.safePath('peers')('peers').notEmptyArray().get();
 	let heights = peers.map((peer, i) => peer.safePath('peer['+i+'].height')('peer_state','round_state','height').supress(true).notEmpty().notNegative().get(0));
 	log(JSON.stringify(heights, null, 2));
 	let maxHeight = Math.max(height, ...heights);
 	log('Node height: '+height+' of '+maxHeight);
 	log('Node isLive: '+(height == maxHeight && height > 1));
+	if(progress) {
+		progress[0] = height;
+		progress[1] = maxHeight;
+	}
 	return (height == maxHeight && height > 1);
 }
 

@@ -204,9 +204,10 @@ function __install(self, printout, cleanupCallback, installationToken) {
 				.on('close', function(code, signal) {
 					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
 					let error;
+					let progress=[];
 					let live = false;
 					jsonParseFilter((e, v) => {
-						live = checkNodeAlive(v, printout);
+						live = checkNodeAlive(v, printout, progress);
 						error = e;
 					})(buffer);
 					printout(name+' live='+live);
@@ -217,6 +218,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						{
 							name: name,
 							retry: retry,
+							progress: progress,
 							error: error
 						});
 						setTimeout(checkHealth(port, name, retry-1, next), self.config.checkHealthRetryDelay);
@@ -225,6 +227,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						{
 							name: name,
 							live: live,
+							progress: progress,
 							error: error
 						});
 						setLive(name, live);
