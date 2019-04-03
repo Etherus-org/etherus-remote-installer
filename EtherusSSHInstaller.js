@@ -174,10 +174,10 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						error: error,
 						value: value
 					});
-					if(error || code != 0) {
-						end();
-					}else{
+					if(value && (code == 0)) {
 						next();
+					}else{
+						end();
 					}
 				});
 				stream.on('data', raw('out: ', stream, jsonParseFilter((e, v) => {
