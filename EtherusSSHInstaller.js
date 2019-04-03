@@ -188,8 +188,9 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			});
 		};
 	}
-	function checkHealth(port, name, retry, next) {
+	function checkHealth(port, name, retry, next, retryBase) {
 		next = isFunction(next) || end;
+		retryBase = retryBase || retry;
 		return () => {
 			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && break || sleep 1; done',
 			{
@@ -217,11 +218,11 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						self.emit(Constants.EventPrefix + 'checkHealth.retry', code, code == 0,
 						{
 							name: name,
-							retry: retry,
+							retry: [ retry, retryBase ],
 							progress: progress,
 							error: error
 						});
-						setTimeout(checkHealth(port, name, retry-1, next), self.config.checkHealthRetryDelay);
+						setTimeout(checkHealth(port, name, retry-1, next, retryBase), self.config.checkHealthRetryDelay);
 					} else {
 						self.emit(Constants.EventPrefix + 'checkHealth.result', code, code == 0,
 						{
