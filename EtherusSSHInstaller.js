@@ -155,7 +155,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 	function checkInstallation(port, name, next) {
 		next = isFunction(next) || end;
 		return () => {
-			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/status && break || sleep 1; done',
+			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
 			{
 				pty: false
 			},
@@ -192,7 +192,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		next = isFunction(next) || end;
 		retryBase = retryBase || retry;
 		return () => {
-			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && break || sleep 1; done',
+			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && exit 0 || sleep 1; done; exit 1',
 			{
 				pty: false
 			},
@@ -213,7 +213,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 					})(buffer);
 					printout(name+' live='+live);
 
-					if(!live && retry > 0) {
+					if(code == 0 && !live && retry > 0) {
 						printout('Retry '+name+' :: count: ' + retry);
 						self.emit(Constants.EventPrefix + 'checkHealth.retry', code, code == 0,
 						{
@@ -224,6 +224,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						});
 						setTimeout(checkHealth(port, name, retry-1, next, retryBase), self.config.checkHealthRetryDelay);
 					} else {
+						setLive(name, live);
 						self.emit(Constants.EventPrefix + 'checkHealth.result', code, code == 0,
 						{
 							name: name,
@@ -231,8 +232,11 @@ function __install(self, printout, cleanupCallback, installationToken) {
 							progress: progress,
 							error: error
 						});
-						setLive(name, live);
-						next();
+						if(live && (code == 0)) {
+							next();
+						}else{
+							end();
+						}
 					}
 				});
 				stream.on('data', raw('out: ', stream, (str)=>buffer+=str))
