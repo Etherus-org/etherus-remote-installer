@@ -73,6 +73,7 @@ function runInstallation(stdout, stderr, cfg) {
 					error+= err.port?':' + err.port:'';
 				}
 				reject(error);
+				installer.end();
 			});
 			installer.on(ep + 'install.log', function(str){
 				str && stdout(str);

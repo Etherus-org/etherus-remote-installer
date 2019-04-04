@@ -125,7 +125,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 				});
 				stream.on('data', raw('out: ', stream, (str) => {
 					result.releaseVersion = str.trim('\n');
-					result.canInstall = /^Cent[Oo][Ss](?:\s+|release|\w+)*(7\.\d+)(\.?\d+)? .*\n?$/.test(str);
+					result.canInstall = /^Cent[Oo][Ss](?:\s+|release|\w+)*(7\.\d+)(\.?\d+)?.*\n?$/.test(str);
 				}))
 				.stderr.on('data', raw('err: ', stream));
 			});
@@ -222,7 +222,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 							progress: progress,
 							error: error
 						});
-						setTimeout(checkHealth(port, name, retry-1, next, retryBase), self.config.checkHealthRetryDelay);
+						scheduleNext(checkHealth(port, name, retry-1, next, retryBase), self.config.checkHealthRetryDelay);
 					} else {
 						setLive(name, live);
 						self.emit(Constants.EventPrefix + 'checkHealth.result', code, code == 0,
@@ -254,11 +254,22 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			break;
 		}
 	}
-	function end() {
-		self.end();
-		self.emit(Constants.EventPrefix + 'result', snAlive && vnAlive, installationToken);
-		cleanupCallback(snAlive && vnAlive);
+	let running=true;
+	function scheduleNext(callback, delay) {
+		setTimeout(() => {
+			if(running) {
+				callback();
+			}
+		}, delay);
 	}
+	function end() {
+		running=false;
+		self.end();
+	}
+	self.on('close', (error) => {
+		self.emit(Constants.EventPrefix + 'result', snAlive && vnAlive, installationToken, error);
+		cleanupCallback(snAlive && vnAlive);
+	});
 	let tail=undefined;
 	if(self.config.checkHealth) {
 		tail=checkHealth(6660, 'ValidatorNode', self.config.checkHealthRetryCount, tail);
