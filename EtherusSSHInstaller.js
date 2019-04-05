@@ -80,15 +80,18 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		}
 	}
 
-	function loginFilter(str, out) {
-		switch (true) {
-			case /^\[sudo\].*\: ?$/.test(str):
-			printout('Client :: write-sudo-password');
-			out.write(self.config.ssh.password);
-			out.write('\n');
-			break;;
-			default:
-			self.emit(Constants.EventPrefix + 'install.log', str);
+	function loginFilter(next) {
+		next = next || (str)=>self.emit(Constants.EventPrefix + 'install.log', str);
+		return (str, out) => {
+			switch (true) {
+				case /^\[sudo\].*\: ?$/.test(str):
+				printout('Client :: write-sudo-password');
+				out.write(self.config.ssh.password);
+				out.write('\n');
+				break;;
+				default:
+				next(str, out);
+			}
 		}
 	}
 
@@ -151,8 +154,8 @@ function __install(self, printout, cleanupCallback, installationToken) {
 					self.emit(Constants.EventPrefix + 'install.result', code, code == 0);
 					next();
 				});
-				stream.on('data', parse('out: ', stream, loginFilter))
-				.stderr.on('data', parse('err: ', stream, loginFilter));
+				stream.on('data', parse('out: ', stream, loginFilter()))
+				.stderr.on('data', parse('err: ', stream, loginFilter()));
 			});
 		};
 	}
@@ -252,7 +255,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		next = isFunction(next) || end;
 		return () => {
 			printout('Client :: ready');
-			self.exec('cat "/opt/etherus/nodes/node_1/data/tenderus/config/"*"_validator.json"',
+			self.exec('sudo sh -c \'cat "/opt/etherus/nodes/node_1/data/tenderus/config/"*"_validator.json"\'',
 			{
 				pty: false
 			},
@@ -267,8 +270,8 @@ function __install(self, printout, cleanupCallback, installationToken) {
 					self.emit(Constants.EventPrefix + 'listValidatorKeys.result', code, code == 0, validatorKey);
 					next();
 				});
-				stream.on('data', raw('out: ', stream, (str)=>buffer+=str))
-				.stderr.on('data', raw('err: ', stream));
+				stream.on('data', loginFilter(raw('out: ', stream, (str)=>buffer+=str)))
+				.stderr.on('data', loginFilter(raw('err: ', stream)));
 			});
 		};
 	}
