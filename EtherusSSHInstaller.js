@@ -81,7 +81,9 @@ function __install(self, printout, cleanupCallback, installationToken) {
 	}
 
 	function loginFilter(next) {
-		next = next || (str)=>self.emit(Constants.EventPrefix + 'install.log', str);
+		next = next || function(str){
+			self.emit(Constants.EventPrefix + 'install.log', str);
+		}
 		return (str, out) => {
 			switch (true) {
 				case /^\[sudo\].*\: ?$/.test(str):
@@ -255,7 +257,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		next = isFunction(next) || end;
 		return () => {
 			printout('Client :: ready');
-			self.exec('sudo sh -c \'cat "/opt/etherus/nodes/node_1/data/tenderus/config/"*"_validator.json"\'',
+			self.exec('sudo sh -c \'cat "/opt/etherus/nodes/node_1/data/tenderus/config/"*"_validator.json"\' 2>/dev/null',
 			{
 				pty: false
 			},
