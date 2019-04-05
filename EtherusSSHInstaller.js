@@ -259,7 +259,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			printout('Client :: ready');
 			self.exec('sudo sh -c \'cat "/opt/etherus/nodes/node_1/data/tenderus/config/"*"_validator.json"\'',
 			{
-				pty: false
+				pty: true
 			},
 			function(err, stream) {
 				if (err) throw err;
