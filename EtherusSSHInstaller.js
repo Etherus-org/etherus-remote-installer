@@ -272,8 +272,8 @@ function __install(self, printout, cleanupCallback, installationToken) {
 					self.emit(Constants.EventPrefix + 'listValidatorKeys.result', code, code == 0, validatorKey);
 					next();
 				});
-				stream.on('data', loginFilter(raw('out: ', stream, (str)=>buffer+=str)))
-				.stderr.on('data', loginFilter(raw('err: ', stream)));
+				stream.on('data', raw('out: ', stream, loginFilter((str)=>buffer+=str)))
+				.stderr.on('data', raw('err: ', stream, loginFilter()));
 			});
 		};
 	}
