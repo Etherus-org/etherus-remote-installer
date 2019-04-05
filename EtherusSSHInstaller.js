@@ -21,6 +21,7 @@ function EtherusSSHInstaller(options) {
 		outCleanup: undefined,
 		install: true,
 		checkHealth: true,
+		listValidatorKeys: false,
 		checkHealthRetryCount: 60,
 		checkHealthRetryDelay: 5000,
 		checkService: true,
@@ -46,6 +47,7 @@ Client.prototype.install = function(cfg) {
 	self.config.outCleanup = cfg.outCleanup && isFunction(cfg.outCleanup) || self.config.outCleanup || NOP;
 	self.config.install = cfg.install || self.config.install;
 	self.config.checkHealth = cfg.checkHealth || self.config.checkHealth;
+	self.config.listValidatorKeys = cfg.listValidatorKeys || self.config.listValidatorKeys;
 	self.config.checkHealthRetryCount = cfg.checkHealthRetryCount || self.config.checkHealthRetryCount;
 	self.config.checkHealthRetryDelay = cfg.checkHealthRetryDelay || self.config.checkHealthRetryDelay;
 	self.config.checkService = cfg.checkService || self.config.checkService;
@@ -246,6 +248,28 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			});
 		};
 	}
+	function listValidatorKeys(next) {
+		next = isFunction(next) || end;
+		return () => {
+			printout('Client :: ready');
+			self.exec('cat "/opt/etherus/nodes/node_1/data/tenderus/config/"*"_validator.json"',
+			{
+				pty: false
+			},
+			let validatorKey='';
+			function(err, stream) {
+				if (err) throw err;
+				stream
+				.on('close', function(code, signal) {
+					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
+					self.emit(Constants.EventPrefix + 'listValidatorKeys.result', code, code == 0, validatorKey);
+					next();
+				});
+				stream.on('data', raw('out: ', stream, (str)=>buffer+=str))
+				.stderr.on('data', raw('err: ', stream));
+			});
+		};
+	}
 	let snAlive=false;
 	let vnAlive=false;
 	function setLive(name, value){
@@ -273,6 +297,9 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		cleanupCallback(snAlive && vnAlive);
 	});
 	let tail=undefined;
+	if(self.config.listValidatorKeys) {
+		tail=listValidatorKeys(tail);
+	}
 	if(self.config.checkHealth) {
 		tail=checkHealth(6660, 'ValidatorNode', self.config.checkHealthRetryCount, tail);
 		tail=checkHealth(6657, 'SentryNode', self.config.checkHealthRetryCount, tail);

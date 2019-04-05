@@ -58,6 +58,9 @@ function runInstallation(stdout, stderr, cfg, options) {
 	cfg.ssh.port = cfg.ssh.port || 22;
 	cfg.checkHealthRetryCount = cfg.checkHealthRetryCount || 1000;
 	cfg.checkHealthRetryDelay = cfg.checkHealthRetryDelay || 5000;
+	if(cfg.vPrivCallback) {
+		cfg.listValidatorKeys = true;
+	}
 
 	try {
 		return new Promise((accept, reject) => {
@@ -112,6 +115,9 @@ function runInstallation(stdout, stderr, cfg, options) {
 					break;
 				}
 				stdout('Service '+service.name+(service.value && ' is running' || ' is missing'), info);
+			});
+			installer.on(ep + 'listValidatorKeys.result', function(code, success, validatorKey){
+				cfg.vPrivCallback && cfg.vPrivCallback instanceof Function && cfg.vPrivCallback(validatorKey);
 			});
 			installer.on(ep + 'checkHealth.result', function(code, success, service){
 				let info = {
