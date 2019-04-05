@@ -50,7 +50,10 @@ function handleMessage(ws, message) {
 			err: err,
 			data: data
 		})),
-		message)
+		message, {
+			branch: 'master',
+			scriptArgs: 'MODE=remote'
+		})
 	.then(
 		(result)=>{
 			ws.close();
@@ -65,7 +68,7 @@ function handleMessage(ws, message) {
 		});
 }
 
-function handleCommandMessage(stdout, stderr, commandMessage) {
+function handleCommandMessage(stdout, stderr, commandMessage, options) {
 	try{
 		let cmd = JSON.parse(commandMessage);
 		return setupTempFile((out, cleanup, logPath) => {
@@ -77,7 +80,9 @@ function handleCommandMessage(stdout, stderr, commandMessage) {
 			return handleCommand(
 				stdout,
 				stderr,
-				cmd.command, cmd.data)
+				cmd.command,
+				cmd.data,
+				options);
 		});
 		
 	} catch(err) {

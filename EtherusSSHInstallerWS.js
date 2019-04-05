@@ -1,11 +1,11 @@
 const EtherusSSHInstaller = require('./EtherusSSHInstaller').EtherusSSHInstaller;
 const ep = EtherusSSHInstaller.Constants.EventPrefix;
 
-function handleCommand(stdout, stderr, command, params) {
+function handleCommand(stdout, stderr, command, params, config) {
 	try{
 		switch (command) {
 			case 'install':
-			return runInstallation(stdout, stderr, params);
+			return runInstallation(stdout, stderr, params, config);
 			default:
 			return Promise.reject('Unknown command: '+command);
 		}
@@ -50,7 +50,7 @@ function _injectGetPath(obj) {
 	return obj;
 }
 
-function runInstallation(stdout, stderr, cfg) {
+function runInstallation(stdout, stderr, cfg, options) {
 	if(!cfg.ssh) throw new PropertyRequiredError('ssh');
 	if(!cfg.ssh.username) throw new PropertyRequiredError('ssh.username');
 	if(!cfg.ssh.password) throw new PropertyRequiredError('ssh.password');
@@ -61,7 +61,7 @@ function runInstallation(stdout, stderr, cfg) {
 
 	try {
 		return new Promise((accept, reject) => {
-			let installer = new EtherusSSHInstaller();
+			let installer = new EtherusSSHInstaller(options);
 			installer.on('error', function(err){
 				console.error(err);
 				let error = err.message;

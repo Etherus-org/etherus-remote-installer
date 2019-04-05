@@ -1,6 +1,6 @@
 {
   "name": "@etherus-org/etherus-remote-installer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Etherus Installation Service",
   "main": "index.js",
   "scripts": {

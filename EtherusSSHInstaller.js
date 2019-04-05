@@ -10,7 +10,7 @@ const Constants = Object.freeze({
 
 //stream.stdin.write(require('fs').readFileSync('../../Testrun/out/centos_7_install_bootstrap'));
 
-function EtherusSSHInstaller() {
+function EtherusSSHInstaller(options) {
 	if (!(this instanceof EtherusSSHInstaller))
 		return new EtherusSSHInstaller();
 
@@ -28,6 +28,8 @@ function EtherusSSHInstaller() {
 		ssh: undefined
 	};
 
+	this.branch = options && options.branch || 'master'
+	this.scriptArgs = options && options.scriptArgs || ''
 }
 inherits(EtherusSSHInstaller, Client);
 
@@ -135,7 +137,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		next = isFunction(next) || end;
 		return () => {
 			printout('Client :: ready');
-			self.exec('eval "$(curl -s \'https://raw.githubusercontent.com/etherus-org/etherctl/master/centos_7_install_bootstrap\')"',
+			self.exec((self.scriptArgs && self.scriptArgs + '; ')+'eval "$(curl -s \'https://raw.githubusercontent.com/etherus-org/etherctl/'+self.branch+'/centos_7_install_bootstrap\')"',
 			{
 				pty: true
 			},
