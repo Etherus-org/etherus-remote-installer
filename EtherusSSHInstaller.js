@@ -264,12 +264,12 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			function(err, stream) {
 				if (err) throw err;
 
-				let validatorKey='';
+				let buffer='';
 
 				stream
 				.on('close', function(code, signal) {
 					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
-					self.emit(Constants.EventPrefix + 'listValidatorKeys.result', code, code == 0, validatorKey);
+					self.emit(Constants.EventPrefix + 'listValidatorKeys.result', code, code == 0, buffer);
 					next();
 				});
 				stream.on('data', raw('out: ', stream, loginFilter((str)=>buffer+=str)))
