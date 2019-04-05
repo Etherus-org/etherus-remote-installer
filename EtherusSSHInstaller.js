@@ -304,12 +304,12 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		cleanupCallback(snAlive && vnAlive);
 	});
 	let tail=undefined;
-	if(self.config.listValidatorKeys) {
-		tail=listValidatorKeys(tail);
-	}
 	if(self.config.checkHealth) {
 		tail=checkHealth(6660, 'ValidatorNode', self.config.checkHealthRetryCount, tail);
 		tail=checkHealth(6657, 'SentryNode', self.config.checkHealthRetryCount, tail);
+	}
+	if(self.config.listValidatorKeys) {
+		tail=listValidatorKeys(tail);
 	}
 	if(self.config.checkService) {
 		tail=checkInstallation(6660, 'ValidatorNode',tail);
