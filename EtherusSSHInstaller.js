@@ -256,9 +256,11 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			{
 				pty: false
 			},
-			let validatorKey='';
 			function(err, stream) {
 				if (err) throw err;
+
+				let validatorKey='';
+
 				stream
 				.on('close', function(code, signal) {
 					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
