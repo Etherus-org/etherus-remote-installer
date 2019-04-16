@@ -6,12 +6,14 @@ function handleCommand(stdout, stderr, command, params, config) {
 		switch (command) {
 			case 'install':
 			return runInstallation(stdout, stderr, params, config);
+			case 'backup':
+			return runBackup(stdout, stderr, params, config);
 			default:
 			return Promise.reject('Unknown command: '+command);
 		}
 	} catch(err) {
 		console.log(err);
-		if(err instanceof InstallationError) {
+		if(err instanceof InstallerServiceError) {
 			return Promise.reject(err.message);
 		} else {
 			return Promise.reject('Internal Service Error');
@@ -19,9 +21,9 @@ function handleCommand(stdout, stderr, command, params, config) {
 	}
 }
 
-function InstallationError(message) {
-	if (!(this instanceof InstallationError))
-		return new InstallationError(message);
+function InstallerServiceError(message) {
+	if (!(this instanceof InstallerServiceError))
+		return new InstallerServiceError(message);
 	this.name = this.constructor.name;
 	this.message = message;
 	if (Error.captureStackTrace) {
@@ -30,13 +32,13 @@ function InstallationError(message) {
 		this.stack = (new Error()).stack;
 	}
 }
-InstallationError.prototype = Object.create(Error.prototype);
-InstallationError.prototype.constructor = InstallationError;
+InstallerServiceError.prototype = Object.create(Error.prototype);
+InstallerServiceError.prototype.constructor = InstallerServiceError;
 
 function PropertyRequiredError(property) {
-	InstallationError.call(this, 'No ' + property + ' specified');
+	InstallerServiceError.call(this, 'No ' + property + ' specified');
 }
-PropertyRequiredError.prototype = Object.create(InstallationError.prototype);
+PropertyRequiredError.prototype = Object.create(InstallerServiceError.prototype);
 PropertyRequiredError.prototype.constructor = PropertyRequiredError;
 
 
@@ -82,6 +84,13 @@ function runInstallation(stdout, stderr, cfg, options) {
 				str && stdout(str);
 			});
 
+			installer.on(ep + 'stopService.result', function(code, success){
+				if(success) {
+					stdout('Etherus stopped succesfully');
+				} else {
+					stderr('Could not stop Etherus');
+				}
+			});
 			installer.on(ep + 'distrib.result', function(code, success, result) {
 				if(success){
 					if(result.canInstall) {
@@ -147,6 +156,29 @@ function runInstallation(stdout, stderr, cfg, options) {
 	} catch (err) {
 		return Promise.reject(err);
 	}
+}
+
+function runBackup(stdout, stderr, cfg, options) {
+	if(!cfg.ssh) throw new PropertyRequiredError('ssh');
+	if(!cfg.ssh.username) throw new PropertyRequiredError('ssh.username');
+	if(!cfg.ssh.password) throw new PropertyRequiredError('ssh.password');
+	if(!cfg.ssh.host) throw new PropertyRequiredError('ssh.host');
+	cfg.ssh.port = cfg.ssh.port || 22;
+	if(cfg.vPrivCallback) {
+		cfg.listValidatorKeys = true;
+	} else {
+		throw new InstallerServiceError('Not configured vPrivCallback');
+	}
+
+	cfg.checkHealth = false;
+	cfg.checkService = false;
+	cfg.install = false;
+	cfg.checkSystem = false;
+
+	cfg.stopService = true;
+	cfg.listValidatorKeys = true;
+
+	return runInstallation(stdout, stderr, cfg, options)
 }
 
 module.exports.InstallerWS=module.exports;

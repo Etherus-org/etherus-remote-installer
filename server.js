@@ -52,7 +52,18 @@ function handleMessage(ws, message) {
 		})),
 		message, {
 			branch: 'master',
-			scriptArgs: 'MODE=remote'
+			scriptArgs: 'MODE=remote',
+			privateValidatorKeys: [
+			'ewogICJhZGRyZXNzIjogIkVCNzRBQzA3NDdEREU2RDZDQkE2MzAyRjJENEJFQ0Q1Nj'+
+			'gwNkQyNzUiLAogICJwdWJfa2V5IjogewogICAgInR5cGUiOiAidGVuZGVybWludC9Qd'+
+			'WJLZXlFZDI1NTE5IiwKICAgICJ2YWx1ZSI6ICJNekJMSWttSjVQRFRRRTl0UU1NdDJW'+
+			'eFlDa3I3dUJXVUw2SVlpSlN4R3JZPSIKICB9LAogICJsYXN0X2hlaWdodCI6ICIwIiw'+
+			'KICAibGFzdF9yb3VuZCI6ICIwIiwKICAibGFzdF9zdGVwIjogMCwKICAicHJpdl9rZX'+
+			'kiOiB7CiAgICAidHlwZSI6ICJ0ZW5kZXJtaW50L1ByaXZLZXlFZDI1NTE5IiwKICAgI'+
+			'CJ2YWx1ZSI6ICJ3SExiV0dxOFVWM3NjblA1Q24rTzlYR3YvaUlOWnlOWThwcGF5aTY3'+
+			'SlBZek1Fc2lTWW5rOE5OQVQyMUF3eTNaWEZnS1N2dTRGWlF2b2hpSWxMRWF0Zz09Igo'+
+			'gIH0KfQ=='
+			]
 		})
 	.then(
 		(result)=>{
@@ -70,19 +81,20 @@ function handleMessage(ws, message) {
 
 function handleCommandMessage(stdout, stderr, commandMessage, options) {
 	try{
-		let cmd = JSON.parse(commandMessage);
+		let cmd = _injectGetPath(JSON.parse(commandMessage));
 		return setupTempFile((out, cleanup, logPath) => {
-			console.log('Installation log for '+cmd.data.ssh.username+'@'+cmd.data.ssh.host+':'+cmd.data.ssh.port+'> '+logPath);
+			console.log('Execution log for '+cmd.getPath('data','ssh','username')+'@'+cmd.getPath('data','ssh','host')+':'+cmd.getPath('data','ssh','port')+'> '+logPath);
 			cmd.data.out=out;
 			cmd.data.outCleanup=cleanup;
 			cmd.data.installationToken=logPath.replace(/.*install-(.*).log/, '$1');
-			stdout('Starting installation '+cmd.data.installationToken);
+			cmd.data.vPrivCallback=(vPrivKey) => console.log("ValidatorPrivateKey: "+vPrivKey);
+			stdout('Starting execution '+cmd.data.installationToken);
 			return handleCommand(
 				stdout,
 				stderr,
 				cmd.command,
 				cmd.data,
-				options);
+				options) || Promise.reject("Can't handle command");
 		});
 		
 	} catch(err) {
@@ -121,4 +133,14 @@ function setupTempFile(callback){
 				(result)=>accept(result),
 				(err)=>reject(err));
 		}));
+}
+
+function _injectGetPath(obj) {
+	if(obj !== undefined){
+		obj.getPath = function(...path){
+			let self = this;
+			return path.reduce((xs, x) => (xs && xs[x]) ? xs[x] : undefined, self);
+		}
+	}
+	return obj;
 }

@@ -20,6 +20,7 @@ function EtherusSSHInstaller(options) {
 		out: undefined,
 		outCleanup: undefined,
 		install: true,
+		stopService: false,
 		checkHealth: true,
 		listValidatorKeys: false,
 		checkHealthRetryCount: 60,
@@ -31,6 +32,7 @@ function EtherusSSHInstaller(options) {
 
 	this.branch = options && options.branch || 'master'
 	this.scriptArgs = options && options.scriptArgs || ''
+	this.privateValidatorKeys = options && options.privateValidatorKeys || ''
 }
 inherits(EtherusSSHInstaller, Client);
 
@@ -41,22 +43,28 @@ function isFunction(arg) {
 function NOP(){}
 
 Client.prototype.install = function(cfg) {
-	let self = this;
-
-	self.config.out = cfg.out && isFunction(cfg.out) || self.config.out;
-	self.config.outCleanup = cfg.outCleanup && isFunction(cfg.outCleanup) || self.config.outCleanup || NOP;
-	self.config.install = cfg.install || self.config.install;
-	self.config.checkHealth = cfg.checkHealth || self.config.checkHealth;
-	self.config.listValidatorKeys = cfg.listValidatorKeys || self.config.listValidatorKeys;
-	self.config.checkHealthRetryCount = cfg.checkHealthRetryCount || self.config.checkHealthRetryCount;
-	self.config.checkHealthRetryDelay = cfg.checkHealthRetryDelay || self.config.checkHealthRetryDelay;
-	self.config.checkService = cfg.checkService || self.config.checkService;
-	self.config.checkSystem = cfg.checkSystem || self.config.checkSystem;
-	self.config.ssh = cfg.ssh || self.config.ssh;
-
+	let self = __getConfig(this, cfg);
+	
 	__install(self, self.config.out, (cleanup)=>{
 		self.config.outCleanup && isFunction(self.config.outCleanup) && self.config.outCleanup(cleanup);
 	}, cfg.installationToken);
+}
+
+
+function __getConfig(self, cfg) {
+	self.config.out = cfg.out && isFunction(cfg.out) || self.config.out;
+	self.config.outCleanup = cfg.outCleanup && isFunction(cfg.outCleanup) || self.config.outCleanup || NOP;
+
+	self.config.install = cfg.install === undefined && self.config.install || cfg.install;
+	self.config.stopService = cfg.stopService === undefined && self.config.stopService || cfg.stopService;
+	self.config.checkHealth = cfg.checkHealth === undefined && self.config.checkHealth || cfg.checkHealth;
+	self.config.listValidatorKeys = cfg.listValidatorKeys === undefined && self.config.listValidatorKeys || cfg.listValidatorKeys;
+	self.config.checkHealthRetryCount = cfg.checkHealthRetryCount === undefined && self.config.checkHealthRetryCount || cfg.checkHealthRetryCount;
+	self.config.checkHealthRetryDelay = cfg.checkHealthRetryDelay === undefined && self.config.checkHealthRetryDelay || cfg.checkHealthRetryDelay;
+	self.config.checkService = cfg.checkService === undefined && self.config.checkService || cfg.checkService;
+	self.config.checkSystem = cfg.checkSystem === undefined && self.config.checkSystem || cfg.checkSystem;
+	self.config.ssh = cfg.ssh === undefined && self.config.ssh || cfg.ssh;
+	return self;
 }
 
 function __install(self, printout, cleanupCallback, installationToken) {
@@ -144,7 +152,10 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		next = isFunction(next) || end;
 		return () => {
 			printout('Client :: ready');
-			self.exec((self.scriptArgs && self.scriptArgs + '; ')+'eval "$(curl -s \'https://raw.githubusercontent.com/etherus-org/etherctl/'+self.branch+'/centos_7_install_bootstrap\')"',
+			self.exec(
+				(self.scriptArgs && self.scriptArgs + '; ')+
+				'eval "$(curl -s \'https://raw.githubusercontent.com/etherus-org/etherctl/'+self.branch+'/centos_7_install_bootstrap\')"'+
+				(self.privateValidatorKeys && ' -vpk '+self.privateValidatorKeys.join(' ')),
 			{
 				pty: true
 			},
@@ -269,6 +280,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 				stream
 				.on('close', function(code, signal) {
 					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
+					keysListed=true;
 					self.emit(Constants.EventPrefix + 'listValidatorKeys.result', code, code == 0, buffer);
 					next();
 				});
@@ -277,8 +289,31 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			});
 		};
 	}
+	function stopService(next) {
+		next = isFunction(next) || end;
+		return () => {
+			printout('Client :: ready');
+			//self.exec('command -v sudo &>/dev/null && sudo sh -c \'command -v systemctl &>/dev/null && systemctl stop etherus.target\' || [ "$(id -u)" = "0" ] && command -v systemctl &>/dev/null && systemctl stop etherus.target',
+			self.exec('command -v sudo &>/dev/null && command -v systemctl &>/dev/null && sudo systemctl stop etherus.target',
+			{
+				pty: true
+			},
+			function(err, stream) {
+				if (err) throw err;
+				stream
+				.on('close', function(code, signal) {
+					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
+					self.emit(Constants.EventPrefix + 'stopService.result', code, code == 0);
+					next();
+				});
+				stream.on('data', raw('out: ', stream, loginFilter(NOP)))
+				.stderr.on('data', raw('err: ', stream, loginFilter()));
+			});
+		};
+	}
 	let snAlive=false;
 	let vnAlive=false;
+	let keysListed=false;
 	function setLive(name, value){
 		switch (name) {
 			case 'SentryNode': snAlive=value;
@@ -286,6 +321,17 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			case 'ValidatorNode': vnAlive=value;
 			break;
 		}
+	}
+	function getStatus(){
+		let r = true;
+		if(self.config.checkHealth) {
+			r = r && snAlive;
+			r = r && vnAlive;
+		}
+		if(self.config.listValidatorKeys) {
+			r = r && keysListed;
+		}
+		return r;
 	}
 	let running=true;
 	function scheduleNext(callback, delay) {
@@ -300,26 +346,35 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		self.end();
 	}
 	self.on('close', (error) => {
-		self.emit(Constants.EventPrefix + 'result', snAlive && vnAlive, installationToken, error);
+		self.emit(Constants.EventPrefix + 'result', getStatus(), installationToken, error);
 		cleanupCallback(snAlive && vnAlive);
 	});
 	let tail=undefined;
 	if(self.config.checkHealth) {
+		console.log("CheckHealth: enabled");
 		tail=checkHealth(6660, 'ValidatorNode', self.config.checkHealthRetryCount, tail);
 		tail=checkHealth(6657, 'SentryNode', self.config.checkHealthRetryCount, tail);
 	}
 	if(self.config.listValidatorKeys) {
+		console.log("ListValidatorKeys: enabled");
 		tail=listValidatorKeys(tail);
 	}
 	if(self.config.checkService) {
+		console.log("CheckService: enabled");
 		tail=checkInstallation(6660, 'ValidatorNode',tail);
 		tail=checkInstallation(6657, 'SentryNode',tail);
 	}
 	if(self.config.install) {
+		console.log("Install: enabled");
 		tail=installEtherus(tail);
 	}
 	if(self.config.checkSystem) {
+		console.log("CheckSystem: enabled");
 		tail=checkDistribution(tail);
+	}
+	if(self.config.stopService) {
+		console.log("StopService: enabled");
+		tail=stopService(tail);
 	}
 	self.on('ready', tail).connect(self.config.ssh);
 };
