@@ -293,8 +293,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		next = isFunction(next) || end;
 		return () => {
 			printout('Client :: ready');
-			//self.exec('command -v sudo &>/dev/null && sudo sh -c \'command -v systemctl &>/dev/null && systemctl stop etherus.target\' || [ "$(id -u)" = "0" ] && command -v systemctl &>/dev/null && systemctl stop etherus.target',
-			self.exec('command -v sudo &>/dev/null && command -v systemctl &>/dev/null && sudo systemctl stop etherus.target',
+			self.exec('command -v systemctl &>/dev/null || exit 1 && [ "$(id -u)" = "0" ] && systemctl stop etherus.target || command -v sudo &>/dev/null && sudo systemctl stop etherus.target',
 			{
 				pty: true
 			},
