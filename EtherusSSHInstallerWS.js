@@ -126,7 +126,12 @@ function runInstallation(stdout, stderr, cfg, options) {
 				stdout('Service '+service.name+(service.value && ' is running' || ' is missing'), info);
 			});
 			installer.on(ep + 'listValidatorKeys.result', function(code, success, validatorKey){
-				cfg.vPrivCallback && cfg.vPrivCallback instanceof Function && cfg.vPrivCallback(validatorKey);
+				try {
+					cfg.vPrivCallback && cfg.vPrivCallback instanceof Function && cfg.vPrivCallback(validatorKey);
+				}catch(error){
+					reject(error);
+					installer.end();
+				}
 			});
 			installer.on(ep + 'checkHealth.result', function(code, success, service){
 				let info = {
