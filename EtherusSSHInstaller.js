@@ -21,6 +21,8 @@ function EtherusSSHInstaller(options) {
 		outCleanup: undefined,
 		install: true,
 		stopService: false,
+		startService: false,
+		wipeData: false,
 		checkHealth: true,
 		listValidatorKeys: false,
 		checkHealthRetryCount: 60,
@@ -57,6 +59,8 @@ function __getConfig(self, cfg) {
 
 	self.config.install = cfg.install === undefined && self.config.install || cfg.install;
 	self.config.stopService = cfg.stopService === undefined && self.config.stopService || cfg.stopService;
+	self.config.startService = cfg.startService === undefined && self.config.startService || cfg.startService;
+	self.config.wipeData = cfg.wipeData === undefined && self.config.wipeData || cfg.wipeData;
 	self.config.checkHealth = cfg.checkHealth === undefined && self.config.checkHealth || cfg.checkHealth;
 	self.config.listValidatorKeys = cfg.listValidatorKeys === undefined && self.config.listValidatorKeys || cfg.listValidatorKeys;
 	self.config.checkHealthRetryCount = cfg.checkHealthRetryCount === undefined && self.config.checkHealthRetryCount || cfg.checkHealthRetryCount;
@@ -310,9 +314,57 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			});
 		};
 	}
+	function startService(next) {
+		next = isFunction(next) || end;
+		return () => {
+			printout('Client :: ready');
+			self.exec('command -v systemctl &>/dev/null || exit 1 && [ "$(id -u)" = "0" ] && systemctl start etherus.target || command -v sudo &>/dev/null && sudo systemctl start etherus.target',
+			{
+				pty: true
+			},
+			function(err, stream) {
+				if (err) throw err;
+				stream
+				.on('close', function(code, signal) {
+					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
+					serviceStarted=true;
+					self.emit(Constants.EventPrefix + 'startService.result', code, code == 0);
+					next();
+				});
+				stream.on('data', raw('out: ', stream, loginFilter(NOP)))
+				.stderr.on('data', raw('err: ', stream, loginFilter()));
+			});
+		};
+	}
+	function wipeData(id, name, next) {
+		next = isFunction(next) || end;
+		id = id || 0;
+		name = name || 'node_'+id;
+		return () => {
+			printout('Client :: ready');
+			self.exec('[ -z "$(id -u etherus 2>/dev/null)" ] && exit -1 || [ "$(id -u)" = "$(id -u etherus 2>/dev/null)" ] && { cd /opt/etherus && ./etherctl wipedata_'+id+' || exit 1; } || command -v su &>/dev/null || exit -2 && [ "$(id -u)" = "0" ] && { su etherus -s"/bin/sh" -c"cd /opt/etherus && ./etherctl wipedata_'+id+'" || exit 1; } || command -v sudo &>/dev/null && { sudo su etherus -s"/bin/sh" -c"cd /opt/etherus && ./etherctl wipedata_'+id+'" || exit 1; } || exit -3',
+			{
+				pty: true
+			},
+			function(err, stream) {
+				if (err) throw err;
+				stream
+				.on('close', function(code, signal) {
+					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
+					dataWiped=true;
+					self.emit(Constants.EventPrefix + 'wipeData.result', code, code == 0, name);
+					next();
+				});
+				stream.on('data', raw('out: ', stream, loginFilter(NOP)))
+				.stderr.on('data', raw('err: ', stream, loginFilter()));
+			});
+		};
+	}
 	let snAlive=false;
 	let vnAlive=false;
 	let keysListed=false;
+	let dataWiped=false;
+	let serviceStarted=false;
 	function setLive(name, value){
 		switch (name) {
 			case 'SentryNode': snAlive=value;
@@ -329,6 +381,12 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		}
 		if(self.config.listValidatorKeys) {
 			r = r && keysListed;
+		}
+		if(self.config.wipeData) {
+			r = r && dataWiped;
+		}
+		if(self.config.startService) {
+			r = r && serviceStarted;
 		}
 		return r;
 	}
@@ -363,6 +421,26 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		tail=checkInstallation(6660, 'ValidatorNode',tail);
 		tail=checkInstallation(6657, 'SentryNode',tail);
 	}
+	if(self.config.startService) {
+		console.log("StartService: enabled");
+		tail=startService(tail);
+	}
+	if(self.config.wipeData) {
+		if(self.config.wipeData instanceof Array) {
+			console.log("WipeDataArray: enabled");
+			for (var i = self.config.wipeData.length - 1; i >= 0; i--) {
+				let id = self.config.wipeData[i];
+				tail=wipeData(id, 'node_'+id, tail);
+			}
+		} else {
+			console.log("WipeData: enabled");
+			tail=wipeData(0, 'SentryNode', tail);
+		}
+	}
+	if(self.config.stopService) {
+		console.log("StopService: enabled");
+		tail=stopService(tail);
+	}
 	if(self.config.install) {
 		console.log("Install: enabled");
 		tail=installEtherus(tail);
@@ -370,10 +448,6 @@ function __install(self, printout, cleanupCallback, installationToken) {
 	if(self.config.checkSystem) {
 		console.log("CheckSystem: enabled");
 		tail=checkDistribution(tail);
-	}
-	if(self.config.stopService) {
-		console.log("StopService: enabled");
-		tail=stopService(tail);
 	}
 	self.on('ready', tail).connect(self.config.ssh);
 };

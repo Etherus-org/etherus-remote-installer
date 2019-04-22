@@ -8,6 +8,8 @@ function handleCommand(stdout, stderr, command, params, config) {
 			return runInstallation(stdout, stderr, params, config);
 			case 'backup':
 			return runBackup(stdout, stderr, params, config);
+			case 'reset':
+			return runReset(stdout, stderr, params, config);
 			default:
 			return Promise.reject('Unknown command: '+command);
 		}
@@ -52,17 +54,12 @@ function _injectGetPath(obj) {
 	return obj;
 }
 
-function runInstallation(stdout, stderr, cfg, options) {
+function runExecution(stdout, stderr, cfg, options) {
 	if(!cfg.ssh) throw new PropertyRequiredError('ssh');
 	if(!cfg.ssh.username) throw new PropertyRequiredError('ssh.username');
 	if(!cfg.ssh.password) throw new PropertyRequiredError('ssh.password');
 	if(!cfg.ssh.host) throw new PropertyRequiredError('ssh.host');
 	cfg.ssh.port = cfg.ssh.port || 22;
-	cfg.checkHealthRetryCount = cfg.checkHealthRetryCount || 1000;
-	cfg.checkHealthRetryDelay = cfg.checkHealthRetryDelay || 5000;
-	if(cfg.vPrivCallback) {
-		cfg.listValidatorKeys = true;
-	}
 
 	try {
 		return new Promise((accept, reject) => {
@@ -83,12 +80,25 @@ function runInstallation(stdout, stderr, cfg, options) {
 			installer.on(ep + 'install.log', function(str){
 				str && stdout(str);
 			});
-
 			installer.on(ep + 'stopService.result', function(code, success){
 				if(success) {
 					stdout('Etherus stopped succesfully');
 				} else {
 					stderr('Could not stop Etherus');
+				}
+			});
+			installer.on(ep + 'startService.result', function(code, success){
+				if(success) {
+					stdout('Etherus started succesfully');
+				} else {
+					stderr('Could not start Etherus');
+				}
+			});
+			installer.on(ep + 'wipeData.result', function(code, success, name){
+				if(success) {
+					stdout('Etherus '+name+' data wiped succesfully');
+				} else {
+					stderr('Could not wipe Etherus '+name+' data');
 				}
 			});
 			installer.on(ep + 'distrib.result', function(code, success, result) {
@@ -163,31 +173,74 @@ function runInstallation(stdout, stderr, cfg, options) {
 	}
 }
 
+function runInstallation(stdout, stderr, cfg, options) {
+	cfg.checkHealthRetryCount = cfg.checkHealthRetryCount || 1000;
+	cfg.checkHealthRetryDelay = cfg.checkHealthRetryDelay || 5000;
+
+	cfg.stopService = false;
+	cfg.wipeData = false;
+
+	cfg.checkSystem = true;
+	cfg.install = true;
+	cfg.startService = true;
+	cfg.checkHealth = true;
+
+	if(cfg.vPubCallback) {
+		cfg.checkService = true;
+	} else {
+		cfg.checkService = false;
+	}
+	if(cfg.vPrivCallback) {
+		cfg.listValidatorKeys = true;
+	} else {
+		cfg.listValidatorKeys = false;
+	}
+
+	return runExecution(stdout, stderr, cfg, options)
+}
+
 function runBackup(stdout, stderr, cfg, options) {
-	if(!cfg.ssh) throw new PropertyRequiredError('ssh');
-	if(!cfg.ssh.username) throw new PropertyRequiredError('ssh.username');
-	if(!cfg.ssh.password) throw new PropertyRequiredError('ssh.password');
-	if(!cfg.ssh.host) throw new PropertyRequiredError('ssh.host');
-	cfg.ssh.port = cfg.ssh.port || 22;
+	cfg.checkSystem = false;
+	cfg.install = false;
+	cfg.wipeData = false;
+	cfg.startService = false;
+	cfg.checkService = false;
+	cfg.checkHealth = false;
+
+	cfg.stopService = true;
 	if(cfg.vPrivCallback) {
 		cfg.listValidatorKeys = true;
 	} else {
 		throw new InstallerServiceError('Not configured vPrivCallback');
 	}
 
-	cfg.checkHealth = false;
-	cfg.checkService = false;
-	cfg.install = false;
+	return runExecution(stdout, stderr, cfg, options)
+}
+
+function runReset(stdout, stderr, cfg, options) {
+	cfg.checkHealth = cfg.checkHealth && true || false;
+	if (cfg.checkHealth) {
+		cfg.checkHealthRetryCount = cfg.checkHealthRetryCount || 1000;
+		cfg.checkHealthRetryDelay = cfg.checkHealthRetryDelay || 5000;
+	}
+	if(cfg.vPubCallback) {
+		cfg.checkService = true;
+	} else {
+		cfg.checkService = false;
+	}
+
 	cfg.checkSystem = false;
+	cfg.install = false;
+	cfg.listValidatorKeys = false;
 
 	cfg.stopService = true;
-	cfg.listValidatorKeys = true;
+	cfg.wipeData = true;
+	cfg.startService = true;
 
-	return runInstallation(stdout, stderr, cfg, options)
+	return runExecution(stdout, stderr, cfg, options)
 }
 
 module.exports.InstallerWS=module.exports;
 module.exports={
-	runInstallation: runInstallation,
 	handleCommand: handleCommand
 };
