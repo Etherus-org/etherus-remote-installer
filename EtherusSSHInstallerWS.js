@@ -61,6 +61,9 @@ function runExecution(stdout, stderr, cfg, options) {
 	if(!cfg.ssh.host) throw new PropertyRequiredError('ssh.host');
 	cfg.ssh.port = cfg.ssh.port || 22;
 
+	cfg.checkHealthRetryCount = cfg.checkHealthRetryCount || 1000;
+	cfg.checkHealthRetryDelay = cfg.checkHealthRetryDelay || 5000;
+
 	try {
 		return new Promise((accept, reject) => {
 			let installer = new EtherusSSHInstaller(options);
@@ -174,9 +177,6 @@ function runExecution(stdout, stderr, cfg, options) {
 }
 
 function runInstallation(stdout, stderr, cfg, options) {
-	cfg.checkHealthRetryCount = cfg.checkHealthRetryCount || 1000;
-	cfg.checkHealthRetryDelay = cfg.checkHealthRetryDelay || 5000;
-
 	cfg.stopService = false;
 	cfg.wipeData = false;
 
@@ -219,10 +219,6 @@ function runBackup(stdout, stderr, cfg, options) {
 
 function runReset(stdout, stderr, cfg, options) {
 	cfg.checkHealth = cfg.checkHealth && true || false;
-	if (cfg.checkHealth) {
-		cfg.checkHealthRetryCount = cfg.checkHealthRetryCount || 1000;
-		cfg.checkHealthRetryDelay = cfg.checkHealthRetryDelay || 5000;
-	}
 	if(cfg.vPubCallback) {
 		cfg.checkService = true;
 	} else {
