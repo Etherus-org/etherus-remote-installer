@@ -226,8 +226,12 @@ function runReset(stdout, stderr, cfg, options) {
 	}
 
 	cfg.checkSystem = false;
-	cfg.install = false;
 	cfg.listValidatorKeys = false;
+
+	cfg.install = true;
+	options = options || {};
+	options.scriptArgs = options.scriptArgs || [];
+	options.scriptArgs.push('COMMAND=init');
 
 	cfg.stopService = true;
 	cfg.wipeData = true;
