@@ -180,8 +180,12 @@ function runInstallation(stdout, stderr, cfg, options) {
 	cfg.stopService = false;
 	cfg.wipeData = false;
 
-	cfg.checkSystem = true;
 	cfg.install = true;
+	options = options || {};
+	options.scriptArgs = options.scriptArgs || [];
+	options.scriptArgs.push('MODE=remote');
+
+	cfg.checkSystem = true;
 	cfg.startService = true;
 	cfg.checkHealth = true;
 
@@ -231,6 +235,7 @@ function runReset(stdout, stderr, cfg, options) {
 	cfg.install = true;
 	options = options || {};
 	options.scriptArgs = options.scriptArgs || [];
+	options.scriptArgs.push('MODE=remote');
 	options.scriptArgs.push('COMMAND=init');
 
 	cfg.stopService = true;
