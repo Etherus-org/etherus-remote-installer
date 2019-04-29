@@ -29,6 +29,7 @@ function EtherusSSHInstaller(options) {
 		checkHealthRetryDelay: 5000,
 		checkService: true,
 		checkSystem: true,
+		precheckService: true,
 		ssh: undefined
 	};
 
@@ -67,6 +68,7 @@ function __getConfig(self, cfg) {
 	self.config.checkHealthRetryDelay = cfg.checkHealthRetryDelay === undefined && self.config.checkHealthRetryDelay || cfg.checkHealthRetryDelay;
 	self.config.checkService = cfg.checkService === undefined && self.config.checkService || cfg.checkService;
 	self.config.checkSystem = cfg.checkSystem === undefined && self.config.checkSystem || cfg.checkSystem;
+	self.config.precheckService = cfg.precheckService === undefined && self.config.precheckService || cfg.precheckService;
 	self.config.ssh = cfg.ssh === undefined && self.config.ssh || cfg.ssh;
 	return self;
 }
@@ -179,7 +181,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 	function checkInstallation(port, name, next) {
 		next = isFunction(next) || end;
 		return () => {
-			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
+			self.exec('for i in $(seq 30); do echo "Service try $i" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
 			{
 				pty: false
 			},
@@ -212,11 +214,101 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			});
 		};
 	}
+	function precheckInstallation(port, name, next, shortcut, config) {
+		next = isFunction(next) || end;
+		shortcut =  isFunction(shortcut) || next;
+		config = config || {};
+		config.retry = config.retry || 6;
+		config.retryDelay = config.retryDelay || 5000;
+		config.speedThreshold = config.speedThreshold || 3000;
+		let retryCount = 0;
+		let firstBlock;
+		let latestBlock;
+		let speed;
+		let process = () => {
+			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
+			{
+				pty: false
+			},
+			function(err, stream) {
+				if (err) throw err;
+
+				let error;
+				let value;
+
+				stream
+				.on('close', function(code, signal) {
+					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
+					printout('Precheck: '+JSON.stringify({
+						retryCount: retryCount,
+						firstBlock: firstBlock,
+						latestBlock: latestBlock,
+						speed: speed,
+					}));
+					if(code !== 0) {
+						self.emit(Constants.EventPrefix + 'precheckService.result', -1, false,
+						{
+							name: name,
+							block: 0,
+							speed: 0,
+						});
+						next();
+						return;
+					}
+					if(value) {
+						value = _injectGetPath(value);
+						let currentBlock = value.getPath('result', 'sync_info', 'latest_block_height');
+						if(currentBlock) {
+							latestBlock = currentBlock;
+							if(firstBlock) {
+								let deltaBlock = currentBlock - firstBlock;
+								let deltaTime = retryCount * config.retryDelay;
+								speed = deltaTime / deltaBlock;
+								if(config.speedThreshold > speed) {
+									self.emit(Constants.EventPrefix + 'precheckService.result', 0, true,
+									{
+										name: name,
+										block: latestBlock,
+										speed: speed,
+									});
+									shortcut();
+									return;
+								}
+							} else {
+								firstBlock = currentBlock;
+								retryCount = 0;
+							}
+						}
+					}
+					if(error) {
+						printout('ParseError: ' + error);
+					}
+					if(retryCount++ < config.retry) {
+						scheduleNext(process, config.retryDelay);
+					} else {
+						self.emit(Constants.EventPrefix + 'precheckService.result', -1, false,
+						{
+							name: name,
+							block: latestBlock,
+							speed: speed,
+						});
+						next();
+					}
+				});
+				stream.on('data', raw('out: ', stream, jsonParseFilter((e, v) => {
+					value = v;
+					error = e;
+				})))
+				.stderr.on('data', raw('err: ', stream));
+			});
+		};
+		return process;
+	}
 	function checkHealth(port, name, retry, next, retryBase) {
 		next = isFunction(next) || end;
 		retryBase = retryBase || retry;
 		return () => {
-			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && exit 0 || sleep 1; done; exit 1',
+			self.exec('for i in $(seq 30); do echo "Service try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && exit 0 || sleep 1; done; exit 1',
 			{
 				pty: false
 			},
@@ -406,7 +498,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		self.emit(Constants.EventPrefix + 'result', getStatus(), installationToken, error);
 		cleanupCallback(snAlive && vnAlive);
 	});
-	let tail=undefined;
+	let tail;
 	if(self.config.checkHealth) {
 		console.log("CheckHealth: enabled");
 		tail=checkHealth(6660, 'ValidatorNode', self.config.checkHealthRetryCount, tail);
@@ -416,6 +508,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		console.log("ListValidatorKeys: enabled");
 		tail=listValidatorKeys(tail);
 	}
+	let shortcut = tail;
 	if(self.config.checkService) {
 		console.log("CheckService: enabled");
 		tail=checkInstallation(6660, 'ValidatorNode',tail);
@@ -449,8 +542,23 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		console.log("CheckSystem: enabled");
 		tail=checkDistribution(tail);
 	}
+	if(self.config.precheckService) {
+		console.log("PrecheckService: enabled");
+		tail=precheckInstallation(6660, 'ValidatorNode',tail, shortcut);
+		tail=precheckInstallation(6657, 'SentryNode',tail, shortcut);
+	}
 	self.on('ready', tail).connect(self.config.ssh);
 };
+
+function _injectGetPath(obj) {
+	if(obj !== undefined){
+		obj.getPath = function(...path){
+			let self = this;
+			return path.reduce((xs, x) => (xs && xs[x]) ? xs[x] : undefined, self);
+		}
+	}
+	return obj;
+}
 
 EtherusSSHInstaller.EtherusSSHInstaller = EtherusSSHInstaller;
 EtherusSSHInstaller.Constants = Constants;

@@ -138,6 +138,13 @@ function runExecution(stdout, stderr, cfg, options) {
 				}
 				stdout('Service '+service.name+(service.value && ' is running' || ' is missing'), info);
 			});
+			installer.on(ep + 'precheckService.result', function(code, success, service){
+				stdout('Service '+service.name+(success && ' is synchronizing' || ' is steady'), {
+					name: service.name,
+					block: service.block,
+					speed: service.speed
+				});
+			});
 			installer.on(ep + 'listValidatorKeys.result', function(code, success, validatorKey){
 				try {
 					cfg.vPrivCallback && cfg.vPrivCallback instanceof Function && cfg.vPrivCallback(validatorKey);
@@ -239,7 +246,7 @@ function runReset(stdout, stderr, cfg, options) {
 	options.scriptArgs.push('COMMAND=init');
 
 	cfg.stopService = true;
-	cfg.wipeData = true;
+	cfg.wipeData = [0,1];
 	cfg.startService = true;
 
 	return runExecution(stdout, stderr, cfg, options)
