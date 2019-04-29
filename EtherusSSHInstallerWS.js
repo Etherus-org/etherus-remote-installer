@@ -217,6 +217,7 @@ function runBackup(stdout, stderr, cfg, options) {
 	cfg.startService = false;
 	cfg.checkService = false;
 	cfg.checkHealth = false;
+	cfg.precheckService = false;
 
 	cfg.stopService = true;
 	if(cfg.vPrivCallback) {
