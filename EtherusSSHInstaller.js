@@ -116,7 +116,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			try {
 				resultAcceptor(undefined, JSON.parse(str));
 			} catch (err) {
-				resultAcceptor(str, undefined);
+				resultAcceptor(err, str);
 			}
 		}
 	}
@@ -308,7 +308,9 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		next = isFunction(next) || end;
 		retryBase = retryBase || retry;
 		return () => {
-			self.exec('for i in $(seq 30); do echo "Service try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && exit 0 || sleep 1; done; exit 1',
+			self.exec('for i in $(seq 30); do echo "dump_consensus_state try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && printf \'"""""""\' && '+
+				'for j in $(seq 30); do echo "status try $j" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done '+
+				' || sleep 1; done; exit 1',
 			{
 				pty: false
 			},
@@ -320,14 +322,35 @@ function __install(self, printout, cleanupCallback, installationToken) {
 				stream
 				.on('close', function(code, signal) {
 					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
-					let error;
+					let error=[];
 					let progress=[];
 					let live = false;
-					jsonParseFilter((e, v) => {
-						live = checkNodeAlive(v, printout, progress);
-						error = e;
-					})(buffer);
+					let data;
+					let altData;
+					buffer = buffer.split('"""""""');
+					if(buffer[0]) {
+						jsonParseFilter((e, v) => {
+							if(e) {
+								error.push(e.message);
+								printout(e + ' at ' + v);
+							} else {
+								data = v;
+							}
+						})(buffer[0]);
+					}
+					if(buffer[1]) {
+						jsonParseFilter((e, v) => {
+							if(e) {
+								error.push(e.message);
+								printout(e + ' at ' + v);
+							} else {
+								altData = v;
+							}
+						})(buffer[1]);
+					}
+					live = checkNodeAlive(data, printout, progress, altData);
 					printout(name+' live='+live);
+					printout(name+' progress='+JSON.stringify(progress));
 
 					if(code == 0 && !live && retry > 0) {
 						printout('Retry '+name+' :: count: ' + retry);
@@ -452,11 +475,19 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			});
 		};
 	}
+	function doShortcut(next) {
+		next = isFunction(next) || end;
+		return () => {
+			shortCut=true;
+			next();
+		};
+	}
 	let snAlive=false;
 	let vnAlive=false;
 	let keysListed=false;
 	let dataWiped=false;
 	let serviceStarted=false;
+	let shortCut=false;
 	function setLive(name, value){
 		switch (name) {
 			case 'SentryNode': snAlive=value;
@@ -473,6 +504,9 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		}
 		if(self.config.listValidatorKeys) {
 			r = r && keysListed;
+		}
+		if(shortCut) {
+			return r;
 		}
 		if(self.config.wipeData) {
 			r = r && dataWiped;
@@ -508,7 +542,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		console.log("ListValidatorKeys: enabled");
 		tail=listValidatorKeys(tail);
 	}
-	let shortcut = tail;
+	let shortcut = doShortcut(tail);
 	if(self.config.checkService) {
 		console.log("CheckService: enabled");
 		tail=checkInstallation(6660, 'ValidatorNode',tail);
@@ -538,14 +572,14 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		console.log("Install: enabled");
 		tail=installEtherus(tail);
 	}
-	if(self.config.checkSystem) {
-		console.log("CheckSystem: enabled");
-		tail=checkDistribution(tail);
-	}
 	if(self.config.precheckService) {
 		console.log("PrecheckService: enabled");
 		tail=precheckInstallation(6660, 'ValidatorNode',tail, shortcut);
 		tail=precheckInstallation(6657, 'SentryNode',tail, shortcut);
+	}
+	if(self.config.checkSystem) {
+		console.log("CheckSystem: enabled");
+		tail=checkDistribution(tail);
 	}
 	self.on('ready', tail).connect(self.config.ssh);
 };
