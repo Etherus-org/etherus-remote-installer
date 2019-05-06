@@ -29,7 +29,8 @@ function checkNodeAlive(data, log, progress, altData) {
 		return (height == maxHeight && height > 1);
 	} catch (err) {
 		log(err);
-		progress[1] = -1;
+		progress[0] = progress[0] || -1;
+		progress[1] = progress[1] || -1;
 		return false;
 	}
 }
