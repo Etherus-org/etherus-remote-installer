@@ -304,9 +304,10 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		};
 		return process;
 	}
-	function checkHealth(port, name, retry, next, retryBase) {
+	function checkHealth(port, name, retry, next, retryBase, maxBlock) {
 		next = isFunction(next) || end;
 		retryBase = retryBase || retry;
+		maxBlock = maxBlock || -1;
 		return () => {
 			self.exec('for i in $(seq 30); do echo "dump_consensus_state try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && printf \'"""""""\' && '+
 				'for j in $(seq 30); do echo "status try $j" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done '+
@@ -323,7 +324,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 				.on('close', function(code, signal) {
 					printout('Stream :: close :: code: ' + code + ', signal: ' + signal);
 					let error=[];
-					let progress=[];
+					let progress=[-1, maxBlock];
 					let live = false;
 					let data;
 					let altData;
@@ -351,7 +352,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 					live = checkNodeAlive(data, printout, progress, altData);
 					printout(name+' live='+live);
 					printout(name+' progress='+JSON.stringify(progress));
-
+					maxBlock = Math.max(maxBlock, progress[1] || progress[1] !== 0 && -1 || 0);
 					if(code == 0 && !live && retry > 0) {
 						printout('Retry '+name+' :: count: ' + retry);
 						self.emit(Constants.EventPrefix + 'checkHealth.retry', code, code == 0,
@@ -361,7 +362,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 							progress: progress,
 							error: error
 						});
-						scheduleNext(checkHealth(port, name, retry-1, next, retryBase), self.config.checkHealthRetryDelay);
+						scheduleNext(checkHealth(port, name, retry-1, next, retryBase, maxBlock), self.config.checkHealthRetryDelay);
 					} else {
 						setLive(name, live);
 						self.emit(Constants.EventPrefix + 'checkHealth.result', code, code == 0,

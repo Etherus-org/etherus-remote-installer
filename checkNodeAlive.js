@@ -16,10 +16,15 @@ function checkNodeAlive(data, log, progress, altData) {
 		if(altData) {
 			height = Math.max(height, Number(altData.safePath('alt_height')('sync_info','latest_block_height').notEmpty().notNegative().get()));
 		}
-		let peers = data.safePath('peers')('peers').notEmptyArray().get();
+		height = height || height !== 0 && -1 || 0;
+		let peers = data.safePath('peers')('peers').isArray().get();
+		if(peers.length == 0) {
+
+		}
 		let heights = peers.map((peer, i) => peer.safePath('peer['+i+'].height')('peer_state','round_state','height').supress(true).notEmpty().notNegative().get(0));
 		log(JSON.stringify(heights, null, 2));
-		let maxHeight = Math.max(height, ...heights);
+		let maxHeight = progress && (progress[1] || progress[1] !== 0 && -1 || 0) || -1;
+		maxHeight = Math.max(maxHeight, ...heights);
 		log('Node height: '+height+' of '+maxHeight);
 		log('Node isLive: '+(height == maxHeight && height > 1));
 		if(progress) {

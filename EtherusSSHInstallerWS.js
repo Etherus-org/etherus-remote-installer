@@ -220,6 +220,12 @@ function runBackup(stdout, stderr, cfg, options) {
 	cfg.precheckService = false;
 
 	cfg.stopService = true;
+
+	if(cfg.vPubCallback) {
+		cfg.checkService = true;
+	} else {
+		cfg.checkService = false;
+	}
 	if(cfg.vPrivCallback) {
 		cfg.listValidatorKeys = true;
 	} else {
@@ -231,11 +237,6 @@ function runBackup(stdout, stderr, cfg, options) {
 
 function runReset(stdout, stderr, cfg, options) {
 	cfg.checkHealth = cfg.checkHealth && true || false;
-	if(cfg.vPubCallback) {
-		cfg.checkService = true;
-	} else {
-		cfg.checkService = false;
-	}
 
 	cfg.checkSystem = false;
 	cfg.listValidatorKeys = false;
@@ -249,6 +250,17 @@ function runReset(stdout, stderr, cfg, options) {
 	cfg.stopService = true;
 	cfg.wipeData = [0,1];
 	cfg.startService = true;
+
+	if(cfg.vPubCallback) {
+		cfg.checkService = true;
+	} else {
+		cfg.checkService = false;
+	}
+	if(cfg.vPrivCallback) {
+		cfg.listValidatorKeys = true;
+	} else {
+		cfg.listValidatorKeys = false;
+	}
 
 	return runExecution(stdout, stderr, cfg, options)
 }
