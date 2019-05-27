@@ -543,12 +543,12 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		console.log("ListValidatorKeys: enabled");
 		tail=listValidatorKeys(tail);
 	}
-	let shortcut = doShortcut(tail);
 	if(self.config.checkService) {
 		console.log("CheckService: enabled");
 		tail=checkInstallation(6660, 'ValidatorNode',tail);
 		tail=checkInstallation(6657, 'SentryNode',tail);
 	}
+	let shortcut = doShortcut(tail);
 	if(self.config.startService) {
 		console.log("StartService: enabled");
 		tail=startService(tail);
