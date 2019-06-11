@@ -76,13 +76,22 @@ function __getConfig(self, cfg) {
 function __install(self, printout, cleanupCallback, installationToken) {
 
 	function parse(prefix, stream, filter) {
+		let tail = '';
+		let put = function(str){
+			printout((prefix || '') + str);
+			filter && filter(str, stream.stdin);
+		};
 		return function(data) {
-			data.toString()
-			.split(/\r?\n/).forEach(
-				function(str){
-					printout((prefix || '') + str);
-					filter && filter(str, stream.stdin);
-				});
+			let str = data.toString();
+			let last = Math.max(str.lastIndexOf('\n'), str.lastIndexOf('\r'));
+			if(last == -1) {
+				tail += str;
+			} else {
+				str = tail + str;
+				last += tail.length;
+				tail = str.slice(last + 1);
+				str.slice(0, last).split(/[\r\n]+/).forEach(put);
+			}
 		}
 	}
 
