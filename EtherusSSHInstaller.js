@@ -168,7 +168,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		return () => {
 			printout('Client :: ready');
 			self.exec(
-				(self.scriptArgs && self.scriptArgs.join('\n') + '; ')+
+				(self.scriptArgs && self.scriptArgs.join('\n') + '\n')+
 				'eval "$(curl -s \'https://raw.githubusercontent.com/etherus-org/etherctl/'+self.branch+'/centos_7_install_bootstrap\')"'+
 				(self.privateValidatorKeys && ' -vpk '+self.privateValidatorKeys.join(' ')),
 			{
