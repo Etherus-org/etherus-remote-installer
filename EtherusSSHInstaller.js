@@ -591,7 +591,16 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		console.log("CheckSystem: enabled");
 		tail=checkDistribution(tail);
 	}
-	self.on('ready', tail).connect(self.config.ssh);
+	self.on('ready', tail)
+	self.on('keyboard-interactive', function(name, instructions, instructionsLang, prompts, finish) {
+		console.log('Connection :: keyboard-interactive');
+		if(self.config.ssh && self.config.ssh.password) {
+			finish([self.config.ssh.password]);
+		} else {
+			console.log('Connection :: keyboard-interactive :: no password was specified for connection');
+		}
+	});
+	self.connect(self.config.ssh);
 };
 
 function _injectGetPath(obj) {
