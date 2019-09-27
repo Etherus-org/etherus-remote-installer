@@ -169,7 +169,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 			printout('Client :: ready');
 			self.exec(
 				(self.scriptArgs && self.scriptArgs.join('\n') + '\n')+
-				'eval "$(curl -s \'https://raw.githubusercontent.com/etherus-org/etherctl/'+self.branch+'/centos_7_install_bootstrap\')"'+
+				'eval "$(curl -fs \'https://raw.githubusercontent.com/etherus-org/etherctl/'+self.branch+'/centos_7_install_bootstrap\')"'+
 				(self.privateValidatorKeys && ' -vpk '+self.privateValidatorKeys.join(' ')),
 			{
 				pty: true
@@ -190,7 +190,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 	function checkInstallation(port, name, next) {
 		next = isFunction(next) || end;
 		return () => {
-			self.exec('for i in $(seq 30); do echo "Service try $i" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
+			self.exec('for i in $(seq 30); do echo "Service try $i" >&2; curl -fs http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
 			{
 				pty: false
 			},
@@ -235,7 +235,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		let latestBlock;
 		let speed;
 		let process = () => {
-			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
+			self.exec('for i in $(seq 5); do echo "Service try $i" >&2; curl -fs http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
 			{
 				pty: false
 			},
@@ -318,8 +318,8 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		retryBase = retryBase || retry;
 		maxBlock = maxBlock || -1;
 		return () => {
-			self.exec('for i in $(seq 30); do echo "dump_consensus_state try $i" >&2; curl http://localhost:' + port + '/dump_consensus_state && printf \'"""""""\' && '+
-				'for j in $(seq 30); do echo "status try $j" >&2; curl http://localhost:' + port + '/status && exit 0 || sleep 1; done '+
+			self.exec('for i in $(seq 30); do echo "dump_consensus_state try $i" >&2; curl -fs http://localhost:' + port + '/dump_consensus_state && printf \'"""""""\' && '+
+				'for j in $(seq 30); do echo "status try $j" >&2; curl -fs http://localhost:' + port + '/status && exit 0 || sleep 1; done '+
 				' || sleep 1; done; exit 1',
 			{
 				pty: false
