@@ -99,7 +99,7 @@ function runExecution(stdout, stderr, cfg, options) {
 			});
 			installer.on(ep + 'wipeData.result', function(code, success, name){
 				if(success) {
-					stdout('Etherus '+name+' data wiped succesfully');
+					stdout('Etherus '+name+' reset succesfully');
 				} else {
 					stderr('Could not wipe Etherus '+name+' data');
 				}

@@ -480,8 +480,8 @@ function __install(self, printout, cleanupCallback, installationToken) {
 					self.emit(Constants.EventPrefix + 'wipeData.result', code, code == 0, name);
 					next();
 				});
-				stream.on('data', raw('out: ', stream, loginFilter(NOP)))
-				.stderr.on('data', raw('err: ', stream, loginFilter()));
+				stream.on('data', parse('out: ', stream, loginFilter(NOP)))
+				.stderr.on('data', parse('err: ', stream, loginFilter()));
 			});
 		};
 	}
