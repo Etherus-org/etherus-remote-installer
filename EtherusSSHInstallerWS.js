@@ -248,7 +248,7 @@ function runReset(stdout, stderr, cfg, options) {
 	options.scriptArgs.push('COMMAND=init');
 
 	cfg.stopService = true;
-	cfg.wipeData = [1, 0];
+	cfg.wipeData = [0, 1];
 	cfg.startService = true;
 
 	if(cfg.vPubCallback) {

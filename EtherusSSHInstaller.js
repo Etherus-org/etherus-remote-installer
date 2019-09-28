@@ -467,7 +467,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 		name = name || 'node_'+id;
 		return () => {
 			printout('Client :: ready');
-			self.exec('[ -z "$(id -u etherus 2>/dev/null)" ] && exit -1 || [ "$(id -u)" = "$(id -u etherus 2>/dev/null)" ] && { cd /opt/etherus && ./etherctl wipedata_'+id+' || exit 1; } || command -v su &>/dev/null || exit -2 && [ "$(id -u)" = "0" ] && { su etherus -s"/bin/sh" -c"cd /opt/etherus && ./etherctl wipedata_'+id+'" || exit 1; } || command -v sudo &>/dev/null && { sudo su etherus -s"/bin/sh" -c"cd /opt/etherus && ./etherctl wipedata_'+id+'" || exit 1; } || exit -3',
+			self.exec('[ -z "$(id -u etherus 2>/dev/null)" ] && exit -1 || { [ "$(id -u)" == "$(id -u etherus 2>/dev/null)" ] && { cd /opt/etherus && ./etherctl wipedata_'+id+' || exit 1; } || { command -v su &>/dev/null || exit -2 && { [ "$(id -u)" == "0" ] && { su etherus -s"/bin/sh" -c"cd /opt/etherus && ./etherctl wipedata_'+id+'" || exit 2; } || { command -v sudo &>/dev/null && { sudo su etherus -s"/bin/sh" -c"cd /opt/etherus && ./etherctl wipedata_'+id+'" || exit 3; } || exit -3; }; }; }; }',
 			{
 				pty: true
 			},
