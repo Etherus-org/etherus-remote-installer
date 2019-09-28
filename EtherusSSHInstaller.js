@@ -155,11 +155,11 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						end();
 					}
 				});
-				stream.on('data', raw('out: ', stream, (str) => {
+				stream.on('data', raw('debug-out: ', stream, (str) => {
 					result.releaseVersion = str.trim('\n');
 					result.canInstall = /^Cent[Oo][Ss](?:\s+|release|\w+)*(7\.\d+)(\.?\d+)?.*\n?$/.test(str);
 				}))
-				.stderr.on('data', raw('err: ', stream));
+				.stderr.on('data', raw('debug-err: ', stream));
 			});
 		};
 	}
@@ -215,11 +215,11 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						end();
 					}
 				});
-				stream.on('data', raw('out: ', stream, jsonParseFilter((e, v) => {
+				stream.on('data', raw('debug-out: ', stream, jsonParseFilter((e, v) => {
 					value = v;
 					error = e;
 				})))
-				.stderr.on('data', raw('err: ', stream));
+				.stderr.on('data', raw('debug-err: ', stream));
 			});
 		};
 	}
@@ -304,11 +304,11 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						next();
 					}
 				});
-				stream.on('data', raw('out: ', stream, jsonParseFilter((e, v) => {
+				stream.on('data', raw('debug-out: ', stream, jsonParseFilter((e, v) => {
 					value = v;
 					error = e;
 				})))
-				.stderr.on('data', raw('err: ', stream));
+				.stderr.on('data', raw('debug-err: ', stream));
 			});
 		};
 		return process;
@@ -413,8 +413,8 @@ function __install(self, printout, cleanupCallback, installationToken) {
 					self.emit(Constants.EventPrefix + 'listValidatorKeys.result', code, code == 0, buffer);
 					next();
 				});
-				stream.on('data', raw('out: ', stream, loginFilter((str)=>buffer+=str)))
-				.stderr.on('data', raw('err: ', stream, loginFilter()));
+				stream.on('data', raw('debug-out: ', stream, loginFilter((str)=>buffer+=str)))
+				.stderr.on('data', raw('debug-err: ', stream, loginFilter()));
 			});
 		};
 	}
