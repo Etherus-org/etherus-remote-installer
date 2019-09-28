@@ -388,8 +388,8 @@ function __install(self, printout, cleanupCallback, installationToken) {
 						}
 					}
 				});
-				stream.on('data', raw('out: ', stream, (str)=>buffer+=str))
-				.stderr.on('data', raw('err: ', stream));
+				stream.on('data', raw('debug-out: ', stream, (str)=>buffer+=str))
+				.stderr.on('data', raw('debug-err: ', stream));
 			});
 		};
 	}
