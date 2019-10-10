@@ -104,9 +104,7 @@ function __install(self, printout, cleanupCallback, installationToken) {
 	}
 
 	function loginFilter(next) {
-		next = next || function(str){
-			self.emit(Constants.EventPrefix + 'install.log', str);
-		}
+		next = next || NOP
 		return (str, out) => {
 			switch (true) {
 				case /^\[sudo\].*\: ?$/.test(str):
