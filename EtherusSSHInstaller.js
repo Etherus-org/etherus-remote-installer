@@ -28,6 +28,8 @@ function EtherusSSHInstaller(options) {
 		checkHealthRetryCount: 60,
 		checkHealthRetryDelay: 5000,
 		checkService: true,
+		checkServiceRetryCount: 60,
+		checkServiceRetryDelay: 1000,
 		checkSystem: true,
 		precheckService: true,
 		ssh: undefined
@@ -187,8 +189,10 @@ function __install(self, printout, cleanupCallback, installationToken) {
 	}
 	function checkInstallation(port, name, next) {
 		next = isFunction(next) || end;
+		const retry = self.config.checkServiceRetryCount | 0 || 5;
+		const sleep = self.config.checkServiceRetryDelay  / 1000 || 1;
 		return () => {
-			self.exec('for i in $(seq 30); do echo "Service try $i" >&2; curl -fs http://localhost:' + port + '/status && exit 0 || sleep 1; done; exit 1',
+			self.exec('for i in $(seq ' + retry + '); do echo "Service try $i" >&2; curl -fs http://localhost:' + port + '/status && exit 0 || sleep ' + sleep + '; done; exit 1',
 			{
 				pty: false
 			},
