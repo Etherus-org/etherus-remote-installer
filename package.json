@@ -14,7 +14,7 @@
     "url": "git+https://github.com/Etherus-org/etherus-remote-installer.git"
   },
   "dependencies": {
-    "ssh2": "^0.8.1"
+    "ssh2": "^1.4.0"
   },
   "devDependencies": {
     "express": "^4.16.4",
