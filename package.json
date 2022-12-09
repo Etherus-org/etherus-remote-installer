@@ -17,7 +17,7 @@
     "ssh2": "^0.8.1"
   },
   "devDependencies": {
-    "express": "^4.16.4",
+    "express": "^4.17.3",
     "express-ws": "^4.0.0",
     "tmp": "^0.1.0"
   }
